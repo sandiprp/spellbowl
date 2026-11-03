@@ -4,6 +4,27 @@ const $ = id => document.getElementById(id);
 let words = officialWords, custom = false;
 try { const saved = JSON.parse(localStorage.getItem('spell-sprout-words')); if(Array.isArray(saved) && saved.every(w => typeof w === 'string') && parseWords(saved.join('\n')).length >= 5) { words = parseWords(saved.join('\n')); custom = true; } } catch {}
 let set = [], index = 0, phase = 'ready', generation = 0, interval, voices = [], deadline = 0;
+let completedSets = 0;
+const greetings = ['Bravo, Swamini!', 'Awesome, Swamini!', 'Excellent work, Swamini!', 'You’re awesome, Swamini!', 'You’re a spelling star, Swamini!'];
+let celebrationTimer;
+function clearCelebration() {
+  clearTimeout(celebrationTimer);
+  $('confetti').replaceChildren();
+}
+function celebrate() {
+  clearCelebration();
+  if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
+  const colors = ['#176755', '#e9b44c', '#e98193', '#8e80d5', '#5db8c4'];
+  $('confetti').replaceChildren(...Array.from({length: 80}, (_, i) => {
+    const piece = document.createElement('i');
+    piece.style.left = `${Math.random() * 100}%`;
+    piece.style.backgroundColor = colors[i % colors.length];
+    piece.style.animationDelay = `${Math.random() * 1.2}s`;
+    piece.style.animationDuration = `${2.5 + Math.random() * 1.3}s`;
+    return piece;
+  }));
+  celebrationTimer = setTimeout(clearCelebration, 5500);
+}
 const synth = window.speechSynthesis;
 function summary() { $('listSummary').textContent = `${words.length} words · ${custom ? 'Your saved spelling list' : 'Junior 2026 Spell Bowl · official PDF list'}`; }
 function loadVoices() { if(!synth) return; const previous = $('voice').value; voices = synth.getVoices().filter(v => /^en/i.test(v.lang)); $('voice').replaceChildren(...voices.map((v,i) => new Option(`${v.name} (${v.lang})`, String(i)))); if(!voices.length) $('voice').add(new Option('Device default English voice','')); else if(previous && voices[Number(previous)]) $('voice').value = previous; }
@@ -11,11 +32,17 @@ loadVoices(); if(synth) synth.addEventListener('voiceschanged',loadVoices);
 function render() {
   $('dots').replaceChildren(...Array.from({length:5},(_,i) => {const dot=document.createElement('span'); dot.className='dot'+(phase==='complete'||i<index?' done':set.length&&i===index?' active':'');return dot;}));
   $('setLabel').textContent = phase==='complete'?'SET COMPLETE':set.length?`WORD ${index+1} OF 5`:'READY WHEN YOU ARE';
+  $('setProgress').textContent = `${completedSets} ${completedSets === 1 ? 'set' : 'sets'} completed · ${5 - completedSets % 5} to your next celebration`;
   $('timer').hidden=phase!=='writing'; $('answer').hidden=phase!=='reveal';
-  $('primary').hidden=['speaking','writing'].includes(phase); $('primary').disabled=false;
-  $('primary').textContent=phase==='reveal'?(index===4?'Finish this set ✓':'Next word →'):phase==='complete'?'Practice another set ↗':'Let’s practice ↗';
+  $('primary').hidden=phase==='speaking'; $('primary').disabled=false;
+  $('primary').textContent=phase==='writing'?'I’m done — check spelling →':phase==='reveal'?(index===4?'Finish this set ✓':'Next word →'):phase==='complete'?'Practice another set ↗':'Let’s practice ↗';
   $('again').hidden=phase!=='reveal'; $('end').hidden=!set.length||phase==='complete'; $('edit').disabled=Boolean(set.length)&&phase!=='complete'; $('voice').disabled=Boolean(set.length)&&phase!=='complete';
-  const copy={ready:['♫','Your next victory starts here.','We’ll say each word twice. Keep your answer on paper!'],speaking:['♫','Listen closely…','Your word is being read twice. The timer starts after the second reading.'],writing:['✎','Pencil to paper.','Write the word in your notebook. Take your time.'],reveal:['✓','Time to check your spelling.','Compare with your notebook and make any corrections.'],complete:['✳','Five words. A little stronger.','Nice practice! Review your corrections, then try a fresh set.']}[phase];
+  const copy={ready:['♫','Your next victory starts here.','We’ll say each word twice. Keep your answer on paper!'],speaking:['♫','Listen closely…','Your word is being read twice. The timer starts after the second reading.'],writing:['✎','Pencil to paper.','Write the word in your notebook. Finished early? Check your spelling below.'],reveal:['✓','Time to check your spelling.','Compare with your notebook and make any corrections.'],complete:['✳','Five words. A little stronger.','Nice practice! Review your corrections, then try a fresh set.']}[phase];
+  if (phase === 'complete' && completedSets > 0 && completedSets % 5 === 0) {
+    copy[0] = '🎉';
+    copy[1] = greetings[(completedSets / 5 - 1) % greetings.length];
+    copy[2] = `You’ve completed ${completedSets} sets and practiced ${completedSets * 5} words! Your hard work deserves a celebration.`;
+  }
   $('icon').textContent=copy[0]; $('heading').textContent=copy[1]; $('instruction').textContent=copy[2];
 }
 function speak(text, token) { return new Promise((resolve,reject) => {
@@ -32,9 +59,9 @@ async function pronounce() {
 }
 function tick() { if(phase!=='writing')return;const seconds=secondsLeft(deadline);$('timer').textContent=`${Math.floor(seconds/60)}:${String(seconds%60).padStart(2,'0')}`;if(seconds===0){clearInterval(interval);reveal();} }
 async function spell() {const token=++generation;synth?.cancel();$('status').textContent='';$('retry').hidden=true;$('again').disabled=true;try{await speak(set[index],token);for(const letter of set[index]) {if(token!==generation)return;await speak(letter===' '?'space':letter==='-'?'hyphen':letter,token);}if(token!==generation)return;await speak(set[index],token);}catch(error){fail(error,token);}finally{if(token===generation)$('again').disabled=false;} }
-function reveal(){phase='reveal';$('answer').textContent=set[index];render();spell();}
-function reset(){++generation;synth?.cancel();clearInterval(interval);set=[];index=0;phase='ready';$('status').textContent='';$('retry').hidden=true;$('again').disabled=false;render();}
-$('primary').onclick=()=>{if(phase==='reveal'){++generation;synth?.cancel();$('again').disabled=false;$('retry').hidden=true;$('status').textContent='';if(index===4){phase='complete';render();return;}index++;pronounce();}else{set=pickSet(words);index=0;pronounce();}};
+function reveal(){if(phase!=='writing')return;clearInterval(interval);phase='reveal';$('answer').textContent=set[index];render();spell();}
+function reset(){clearCelebration();++generation;synth?.cancel();clearInterval(interval);set=[];index=0;phase='ready';$('status').textContent='';$('retry').hidden=true;$('again').disabled=false;render();}
+$('primary').onclick=()=>{if(phase==='writing'){reveal();return;}if(phase==='speaking')return;if(phase==='reveal'){++generation;synth?.cancel();$('again').disabled=false;$('retry').hidden=true;$('status').textContent='';if(index===4){completedSets++;phase='complete';render();if(completedSets % 5 === 0)celebrate();return;}index++;pronounce();}else{clearCelebration();set=pickSet(words);index=0;pronounce();}};
 $('end').onclick=reset;$('again').onclick=spell;$('retry').onclick=()=>phase==='reveal'?spell():pronounce();
 $('edit').onclick=()=>{$('words').value=words.join('\n');$('listError').textContent='';$('editor').showModal();};
 $('file').onchange=async event=>{const file=event.target.files[0];if(file){if(file.size>1000000){$('listError').textContent='Please use a text file smaller than 1 MB.';return;}$('words').value=await file.text();}};

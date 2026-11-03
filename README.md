@@ -4,7 +4,7 @@ A responsive, browser-based Spell Bowl practice app. No account, backend, API ke
 
 ## Practice
 
-Each set chooses five distinct random words from the current list. The app reads a word twice, waits for the second speech-completion event, then starts a 30-second timer. At zero, it reveals the answer and reads the word, its individual letters, and the word again. Students correct their notebooks and click Next word when ready. Words can recur in later sets.
+Each set chooses five distinct random words from the current list. The app reads a word twice, waits for the second speech-completion event, then starts a 30-second timer. At zero, it reveals the answer and reads the word, its individual letters, and the word again. Students can click “I’m done — check spelling” during the countdown to stop the timer and reveal the spelling early. Students correct their notebooks and click Next word when ready. Words can recur in later sets.
 
 Use Manage word list to paste words or import plain .txt/.csv text (one word per line or comma-separated, no headers or numbering). Lists are saved in the current browser. The default list contains 1399 entries extracted from Junior Spell Bowl List.pdf (Junior 2026). Original capitalization, spaces, and hyphens are preserved. Blank or omitted numbered entries in the supplied PDF are excluded. Edit words.js to change the shared default list. official-words.txt is included for review.
 
@@ -26,3 +26,7 @@ No environment variables are needed. If this app is inside a larger repository, 
 Speech uses the browser's built-in Web Speech API and installed English voices. Choose a voice before starting. Pronunciation quality and offline support depend on the browser and operating system. Audio errors offer a retry and do not start the writing timer. Keep the page visible and sound enabled: browsers can suspend audio in background tabs. Timer calculations use the actual deadline, so delayed callbacks cannot add writing time; a suspended page reveals the answer when it resumes. The app cannot detect muted speakers. No microphone is used.
 
 The app uses Google Fonts for typography with local fallback fonts. Word lists stay in local browser storage; browser or operating-system speech services may process words to generate audio.
+
+## Celebrations
+
+Every five completed sets (25 words), Swamini receives confetti and a rotating encouraging greeting. Only finished sets count; ending a set early does not add progress. Progress lasts for the current page visit and resets on reload. Confetti respects reduced-motion preferences, and the greeting remains visible until the next set.
