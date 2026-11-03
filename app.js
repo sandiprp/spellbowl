@@ -28,7 +28,7 @@ function speak(text, token) { return new Promise((resolve,reject) => {
 function fail(error,token) {if(token!==generation)return; $('status').textContent=error.message; $('retry').hidden=false;}
 async function pronounce() {
   const token=++generation; synth?.cancel(); phase='speaking'; $('status').textContent=''; $('retry').hidden=true;render();
-  try { await speak(set[index],token); if(token!==generation)return; await new Promise(r=>setTimeout(r,800)); if(token!==generation)return; await speak(set[index],token); if(token!==generation)return; phase='writing';deadline=Date.now()+60000;render();tick();interval=setInterval(tick,200); } catch(error) {fail(error,token);}
+  try { await speak(set[index],token); if(token!==generation)return; await new Promise(r=>setTimeout(r,800)); if(token!==generation)return; await speak(set[index],token); if(token!==generation)return; phase='writing';deadline=Date.now()+30000;render();tick();interval=setInterval(tick,200); } catch(error) {fail(error,token);}
 }
 function tick() { if(phase!=='writing')return;const seconds=secondsLeft(deadline);$('timer').textContent=`${Math.floor(seconds/60)}:${String(seconds%60).padStart(2,'0')}`;if(seconds===0){clearInterval(interval);reveal();} }
 async function spell() {const token=++generation;synth?.cancel();$('status').textContent='';$('retry').hidden=true;$('again').disabled=true;try{await speak(set[index],token);for(const letter of set[index]) {if(token!==generation)return;await speak(letter===' '?'space':letter==='-'?'hyphen':letter,token);}if(token!==generation)return;await speak(set[index],token);}catch(error){fail(error,token);}finally{if(token===generation)$('again').disabled=false;} }

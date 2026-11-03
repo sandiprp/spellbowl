@@ -4,7 +4,7 @@ A responsive, browser-based Spell Bowl practice app. No account, backend, API ke
 
 ## Practice
 
-Each set chooses five distinct random words from the current list. The app reads a word twice, waits for the second speech-completion event, then starts a 60-second timer. At zero, it reveals the answer and reads the word, its individual letters, and the word again. Students correct their notebooks and click Next word when ready. Words can recur in later sets.
+Each set chooses five distinct random words from the current list. The app reads a word twice, waits for the second speech-completion event, then starts a 30-second timer. At zero, it reveals the answer and reads the word, its individual letters, and the word again. Students correct their notebooks and click Next word when ready. Words can recur in later sets.
 
 Use Manage word list to paste words or import plain .txt/.csv text (one word per line or comma-separated, no headers or numbering). Lists are saved in the current browser. The default list contains 1399 entries extracted from Junior Spell Bowl List.pdf (Junior 2026). Original capitalization, spaces, and hyphens are preserved. Blank or omitted numbered entries in the supplied PDF are excluded. Edit words.js to change the shared default list. official-words.txt is included for review.
 
