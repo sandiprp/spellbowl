@@ -36,7 +36,7 @@ function render() {
   $('timer').hidden=phase!=='writing'; $('answer').hidden=phase!=='reveal';
   $('primary').hidden=phase==='speaking'; $('primary').disabled=false;
   $('primary').textContent=phase==='writing'?'I’m done — check spelling →':phase==='reveal'?(index===4?'Finish this set ✓':'Next word →'):phase==='complete'?'Practice another set ↗':'Let’s practice ↗';
-  $('again').hidden=phase!=='reveal'; $('end').hidden=!set.length||phase==='complete'; $('edit').disabled=Boolean(set.length)&&phase!=='complete'; $('voice').disabled=Boolean(set.length)&&phase!=='complete';
+  $('replay').hidden=phase!=='writing'; $('again').hidden=phase!=='reveal'; $('end').hidden=!set.length||phase==='complete'; $('edit').disabled=Boolean(set.length)&&phase!=='complete'; $('voice').disabled=Boolean(set.length)&&phase!=='complete'; $('duration').disabled=Boolean(set.length)&&phase!=='complete';
   const copy={ready:['♫','Your next victory starts here.','We’ll say each word twice. Keep your answer on paper!'],speaking:['♫','Listen closely…','Your word is being read twice. The timer starts after the second reading.'],writing:['✎','Pencil to paper.','Write the word in your notebook. Finished early? Check your spelling below.'],reveal:['✓','Time to check your spelling.','Compare with your notebook and make any corrections.'],complete:['✳','Five words. A little stronger.','Nice practice! Review your corrections, then try a fresh set.']}[phase];
   if (phase === 'complete' && completedSets > 0 && completedSets % 5 === 0) {
     copy[0] = '🎉';
@@ -54,15 +54,16 @@ function speak(text, token) { return new Promise((resolve,reject) => {
 }); }
 function fail(error,token) {if(token!==generation)return; $('status').textContent=error.message; $('retry').hidden=false;}
 async function pronounce() {
-  const token=++generation; synth?.cancel(); phase='speaking'; $('status').textContent=''; $('retry').hidden=true;render();
-  try { await speak(set[index],token); if(token!==generation)return; await new Promise(r=>setTimeout(r,800)); if(token!==generation)return; await speak(set[index],token); if(token!==generation)return; phase='writing';deadline=Date.now()+30000;render();tick();interval=setInterval(tick,200); } catch(error) {fail(error,token);}
+  const token=++generation; synth?.cancel(); $('replay').disabled=false; phase='speaking'; $('status').textContent=''; $('retry').hidden=true;render();
+  try { await speak(set[index],token); if(token!==generation)return; await new Promise(r=>setTimeout(r,800)); if(token!==generation)return; await speak(set[index],token); if(token!==generation)return; phase='writing';deadline=Date.now()+Number($('duration').value)*1000;render();tick();interval=setInterval(tick,200); } catch(error) {fail(error,token);}
 }
 function tick() { if(phase!=='writing')return;const seconds=secondsLeft(deadline);$('timer').textContent=`${Math.floor(seconds/60)}:${String(seconds%60).padStart(2,'0')}`;if(seconds===0){clearInterval(interval);reveal();} }
+async function replayWord() {const token=++generation;synth?.cancel();$('status').textContent='';$('retry').hidden=true;$('replay').disabled=true;try{await speak(set[index],token);}catch(error){fail(error,token);}finally{if(token===generation)$('replay').disabled=false;} }
 async function spell() {const token=++generation;synth?.cancel();$('status').textContent='';$('retry').hidden=true;$('again').disabled=true;try{await speak(set[index],token);for(const letter of set[index]) {if(token!==generation)return;await speak(letter===' '?'space':letter==='-'?'hyphen':letter,token);}if(token!==generation)return;await speak(set[index],token);}catch(error){fail(error,token);}finally{if(token===generation)$('again').disabled=false;} }
 function reveal(){if(phase!=='writing')return;clearInterval(interval);phase='reveal';$('answer').textContent=set[index];render();spell();}
 function reset(){clearCelebration();++generation;synth?.cancel();clearInterval(interval);set=[];index=0;phase='ready';$('status').textContent='';$('retry').hidden=true;$('again').disabled=false;render();}
 $('primary').onclick=()=>{if(phase==='writing'){reveal();return;}if(phase==='speaking')return;if(phase==='reveal'){++generation;synth?.cancel();$('again').disabled=false;$('retry').hidden=true;$('status').textContent='';if(index===4){completedSets++;phase='complete';render();if(completedSets % 5 === 0)celebrate();return;}index++;pronounce();}else{clearCelebration();set=pickSet(words);index=0;pronounce();}};
-$('end').onclick=reset;$('again').onclick=spell;$('retry').onclick=()=>phase==='reveal'?spell():pronounce();
+$('end').onclick=reset;$('replay').onclick=replayWord;$('again').onclick=spell;$('retry').onclick=()=>phase==='reveal'?spell():pronounce();
 $('edit').onclick=()=>{$('words').value=words.join('\n');$('listError').textContent='';$('editor').showModal();};
 $('file').onchange=async event=>{const file=event.target.files[0];if(file){if(file.size>1000000){$('listError').textContent='Please use a text file smaller than 1 MB.';return;}$('words').value=await file.text();}};
 $('save').onclick=()=>{const list=parseWords($('words').value);if(list.length<5){$('listError').textContent='Please add at least 5 unique words.';return;}words=list;custom=true;try{localStorage.setItem('spell-sprout-words',JSON.stringify(words));}catch{$('status').textContent='Your list is loaded for this visit, but this browser could not save it.';}summary();$('editor').close();};
